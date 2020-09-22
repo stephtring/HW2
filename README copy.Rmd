@@ -56,13 +56,14 @@ chs_ind[chs_ind$fvc==""] <- NA
 chs_ind[chs_ind$mmef==""] <- NA
 
 # Selecting the three relevant columns, and keeping unique records
-chs_ind <- unique(chs_ind[, list(sid,townname,male ,asthma,hispanic,smoke,gasstove,agepft, bmi, fev, fvc, mmef)])
+chs_ind <- unique(chs_ind[, list("sid","townname", "male" ,"asthma", "hispanic","smoke","gasstove","agepft", "bmi", "fev", "fvc", "mmef")])
 
 # Dropping NAs
-chs_ind <- chs_ind[!is.na(sid)]
+chs_ind <- chs_ind[!is.na("sid")]
+
 
 # Removing duplicates
-chs_ind[, n := 1:.N, by = .(sid)]
+chs_ind[, n := 1:.N, by = .("sid")]
 chs_ind <- chs_ind[n == 1,][, n := NULL]
 ```
 
@@ -75,12 +76,14 @@ chs_ind <- chs_ind[n == 1,][, n := NULL]
 ```{r}
 chs <- merge(
   x = chs_reg, y = chs_ind,
-  by.x = "townname", by.y = "townname",
+  by.x = "townname", by.y = townname,
   all.x = TRUE, all.y = FALSE
   )
+chs <- as.data.frame(chs)
 
 # Print out a sample of the data
-chs[1:5, .(townname, pm25_mass, male, bmi, fev, fvc, lat, lon)]
+view(chs)
+
 ```
 Based on the number of observations, I do not find duplicates
 
@@ -92,14 +95,17 @@ Based on the total number of observations for this new category "obesity_level,"
 
 ```{r}
 ##Creating categorical variable called obesity_level
-
 chs$bmi <- as.character(unlist(chs$bmi))
-chs_ldt<-lazy_dt(chs, immutable = FALSE)
-chs_ldt %>%
-  mutate(obesity_level= ifelse(chs$bmi< 14, "underweight",
+#obesity_level <- ifelse(chs$bmi< 14, "underweight",
+                         #ifelse(chs$bmi > 13 & chs$bmi < 23, "normal",
+                                #ifelse(chs$bmi > 21 & chs$bmi < 25, "overweight", "obese")))
+
+chs %>%
+  mutate(obesity_level = ifelse(chs$bmi< 14, "underweight",
                          ifelse(chs$bmi > 13 & chs$bmi < 23, "normal",
                                 ifelse(chs$bmi > 21 & chs$bmi < 25, "overweight", "obese"))))
-table(chs$obesity_level)
+
+
 
 ```
 
@@ -108,30 +114,32 @@ table(chs$obesity_level)
 
 ```{r}
 ##Creating categorical variable called smoke_gas_exposure
+chs <- chs[!is.na("smoke")]
+chs <- chs[!is.na("gasstove")]
 
-chs$smoke <- as.numeric(unlist(chs$smoke))
-chs$gasstove <- as.numeric(unlist(chs$gasstove))
+chs$smoke <- as.integer(unlist(chs$smoke))
+chs$gasstove <- as.integer(unlist(chs$gasstove))
 
-chs_ldt<-lazy_dt(chs, immutable = FALSE)
-chs_ldt %>%
-  mutate(smoke_gas_exposure =ifelse(chs$smoke  > 0 & chs$gasstove <1, "only_secondhand",
+chs%>%
+mutate(smoke_gas_exposure=ifelse(chs$smoke  > 0 & chs$gasstove <1, "only_secondhand",
                          ifelse(chs$smoke <1 & chs$gasstove >0, "only_gasstove",
                                ifelse(chs$smoke >0 & chs$gasstove >0, "both", "no"))))
-chs <- chs[!is.na(smoke_gas_exposure)]
-table(chs$smoke_gas_exposure)
+view(chs)
 ```
 
 After removing "NA", the new categorical variable "smoke_gas_exposure" has a total of 1038 observation which is correct.
 
-##Step 4: Create four summary tables 
+## Step 4: Create four summary tables 
 -Create four summary table showing the average (or proportion, if binary) and sd of “Forced expiratory volume in 1 second (ml)” and asthma indicator by town, sex, obesity level, and “smoke_gas_exposure.”
 
 ```{r}
+chs <- as.data.table(chs)
 #summary table
+
 chs <- chs[!is.na(fev)]
 chs <- chs[!is.na(asthma)]
 chs$fev <- as.double(unlist(chs$fev))
-chs$asthma <- as.logical(unlist(chs$asthma))
+chs$asthma <- as.integer(unlist(chs$asthma))
 
 #summary table for townname
 chs[, .(
@@ -202,8 +210,7 @@ summary(as.double(chs$fev))
 
 ```
 
-Based on google BMI range can go up to >30, therefore the range looks good. Based on google, the PM2.5mass also looks within range.The FEV measured in seconds ml is also within range.
-
+Based on google BMI range can go up to >30, 
 ```{r}
 # Check Summary Statistics
 summary(chs)
@@ -212,11 +219,12 @@ summary(chs)
 ```{r}
 ##Correlation between key variables
 #BMI and FEV
-cor(as.numeric(chs$bmi), as.numeric(chs$fev), use="complete")
+cor(chs$bmi, chs$fev, use="complete")
 #smoke_gas_exposure and FEV
-#cor(chs$smoke_gas_exposure, chs$fev, use="complete")
+cor(chs$smoke_gas_exposure, chs$fev, use="complete")
 #PM2.5 and FEV
-cor(as.numeric(chs$pm25_mass),as.numeric(chs$fev), use="complete")
+chs$pm25_mass <- as.numeric(unlist(chs$pm25_mass))
+cor(chs$pm25_mass, chs$fev, use="complete")
 
 ```
 There is not much correlation between pm25_mass and fev at 0.063. There is a slight correlation between BMI and FEV at 0.365.
@@ -227,7 +235,7 @@ There is not much correlation between pm25_mass and fev at 0.063. There is a sli
 #Scatter plot of BMI vs FEV by 'townname'
 chs %>% 
   filter(!(townname %in% NA)) %>% 
-  ggplot(mapping = aes(x=as.numeric(bmi), y=as.numeric(fev), color=townname))+
+  ggplot(mapping = aes(x=bmi, y=fev, color=townname))+
   geom_point()+
   stat_smooth(method=lm)
 ```
@@ -237,19 +245,11 @@ The association between the BMI and FEV is positive in all towns (an increase in
 ```{r}
 #Stacked histograms of FEV by BMI category and FEV by smoke/gas exposure.
 
-#Computing quartiles to categorize FEV for graphing
-chs[, Fev50   := quantile(as.numeric(fev), probs = .5, na.rm = TRUE)]
-
-chs_ldt<-lazy_dt(chs, immutable = FALSE)
-chs_ldt %>%
-  mutate(Fev_cat =ifelse(as.numeric(chs$fev) < 545.5, "Fev_belowMed", "Fev_aboveMed"))
-                        
-
 #FEV by BMI category
 chs %>% 
   filter(!(obesity_level %in% NA)) %>% 
   ggplot()+
-  geom_bar(mapping = aes(x= Fev_cat, fill = obesity_level))+
+  geom_bar(mapping = aes(x= fev, fill = obesity_level))+
   scale_fill_brewer(palette = "PuOr")+
   labs(title="Proportion of FEV by BMI category")
 
@@ -257,7 +257,7 @@ chs %>%
 chs %>% 
   filter(!(smoke_gas_exposure %in% NA)) %>% 
   ggplot()+
-  geom_bar(mapping = aes(x= Fev_cat, fill = smoke_gas_exposure))+
+  geom_bar(mapping = aes(x= fev, fill = smoke_gas_exposure))+
   scale_fill_brewer(palette = "PuOr")+
   labs(title="Proportion of FEV by Smoke/Gas Exposure")
 
@@ -267,12 +267,11 @@ chs %>%
 #Step 3: Barchart of BMI by smoke/gas exposure.
 
 ```{r}
-
 #Barchart of BMI by Smoke/Gas Exposure
 chs %>% 
   filter(!(smoke_gas_exposure %in% NA)) %>% 
   ggplot()+
-  geom_boxplot(mapping=aes(y=as.numeric(bmi), fill=smoke_gas_exposure))+
+  geom_boxplot(mapping=aes(y=bmi, fill=smoke_gas_exposure))+
 facet_wrap(~smoke_gas_exposure, nrow=2)
 ```
 
@@ -282,45 +281,23 @@ facet_wrap(~smoke_gas_exposure, nrow=2)
 #Stat_summary of FEV by BMI category
 chs %>%
   filter(!(obesity_level %in% NA)) %>% 
-  ggplot(mapping=aes(x=obesity_level, y=as.numeric(fev))) + 
+  ggplot(mapping=aes(x=obesity_level, y=fev)) + 
     stat_summary(fun.data = "mean_sdl")
 
 #Stat_summary of FEV by Smoke/Gas Exposure Category
 chs %>%
   filter(!(smoke_gas_exposure %in% NA)) %>% 
-  ggplot(mapping=aes(x=smoke_gas_exposure, y=as.numeric(fev))) + 
+  ggplot(mapping=aes(x=smoke_gas_exposure, y=fev)) + 
     stat_summary(fun.data = "mean_sdl")
 ```
 ## Step 5:A leaflet map showing the concentrations of PM2.5 mass in each of the CHS communities.
-
-
 ```{r}
 #leaflet map of PM2.5mass by townname
-###ahhhh cannot get this right!
+PM_pal= colorNumeric(c('blue', 'purple', 'red'), domain = chs$pm25_mass)
 
-PM_pal= colorFactor(c('blue', 'purple', 'red'), domain = as.factor(chs_reg$pm25_mass))
-
-leaflet(chs_reg) %>%
+leaflet(chs) %>%
   addProviderTiles('OpenStreetMap') %>%
-  addCircles(lat=~as.numeric(lat), lng=~as.numeric(lon), color=~PM_pal(pm25_mass), opacity = 1, fillOpacity =1, radius=500) %>%
-  addLegend('bottomleft', pal=PM_pal, values=chs_reg$pm25_mass, title="PM2.5Mass") 
-```
-
-
-## Step 6: Visualisation to examine whether PM2.5 mass is associated with FEV
-
--Based on the visualization graphs, it does not seem that PM2.5 mass is associated with Fev.
-
-```{r}
-#PM2.5 vs FEV
-ggplot(data=chs) +
-  geom_point(mapping=aes(x=pm25_mass, y=fev))
-```
-```{r}
-chs %>% 
-  filter(!(Fev_cat %in% NA)) %>% 
-  ggplot()+
-  geom_boxplot(mapping=aes(y=as.numeric(pm25_mass), fill=Fev_cat))+
-facet_wrap(~Fev_cat, nrow=2)
+  addCircles(lat=~lat, lng=~lon, color=~PM_pal(pm25_mass), opacity = 1, fillOpacity =1, radius=500) %>%
+  addLegend('bottomleft', pal=PM_pal, values=chs$pm25_mass, title="PM2.5Mass") 
 ```
 
