@@ -1,12 +1,7 @@
 ---
 Name: Stephanie Tring
 Project name: [USC Children's Health Study]
-short-desc: [Health mesurements for the Children's Health Study]
-date-collected: 2018-10-15
-source-url: []
-url: [https://healthstudy.usc.edu/]
-keywords: [health outcomes, panel data]
-format: [csv]
+output: github_document
 ---
 ### Learning Goals
 -Due Date
