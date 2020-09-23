@@ -305,8 +305,7 @@ Based on the barcharts, there is a slight association between smoke/gas
 exposure and BMI levels. It looks like there is higher BMI levels for
 those who experienced both smoke and gas exposure.
 
-#Step 4: Statistical summary graphs of FEV by BMI and FEV by smoke/gas
-exposure category.
+#Step 4: Statistical summary graphs of FEV by BMI and FEV by smoke/gas exposure category.
 
 ``` {r}
 #Stat_summary of FEV by BMI category
