@@ -303,7 +303,7 @@ leaflet(chs_reg) %>%
   addLegend('bottomleft', pal=PM_pal, values=chs_reg$pm25_mass, title="PM2.5Mass")
 ```
 ## Step 6: Visualisation to examine whether PM2.5 mass is associated with FEV
---Based on the visualization graphs, it does not seem that PM2.5 mass is associated with Fev.
+-Based on the visualization graphs, it does not seem that PM2.5 mass is associated with Fev.
 
 ```{r}
 chs %>% 

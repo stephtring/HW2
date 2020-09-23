@@ -93,7 +93,7 @@ create a summary table that contains the minimum BMI, maximum BMI, and
 the total number of observations per category.
 
 Based on the total number of observations for this new category
-“obesity\_level,” there are 1089 observation, which is correct.
+“obesity\_level,”, there are 1089 observation, which is correct.
 
 ``` {r}
 ##Creating categorical variable called obesity_level
