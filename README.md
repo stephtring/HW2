@@ -113,7 +113,7 @@ chs <- chs[!is.na(smoke_gas_exposure)]
 table(chs$smoke_gas_exposure)
 ```
 
-After removing "NA", the new categorical variable "smoke_gas_exposure" has a total of 1038 observation which is correct.
+After removing "NA", the new categorical variable "smoke_gas_exposure" has a total of 1038 obs which is correct.
 
 ##Step 4: Create four summary tables 
 -Create four summary table showing the average (or proportion, if binary) and sd of “Forced expiratory volume in 1 second (ml)” and asthma indicator by town, sex, obesity level, and “smoke_gas_exposure.”
