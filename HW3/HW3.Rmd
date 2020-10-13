@@ -1,0 +1,125 @@
+---
+title: "Assignment 03 - Web Scraping and Text Mining"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## API_1
+
+-Using the NCBI API, look for papers that show up under the term "sars-cov-2 trial vaccine." Look for the data in the pubmed database, and then retrieve the details of the paper as shown in lab 7. How many papers were you able to find?
+
+# Using the NCBI API for "sars-cov-2 trial vaccine," I retrieved 560 papers.
+
+```{r counter-pubmed, eval=TRUE}
+library(xml2)
+# Downloading the website
+website <- xml2::read_html("https://pubmed.ncbi.nlm.nih.gov/?term=sars-cov-2+trial+vaccine")
+# Finding the counts
+counts <- xml2::xml_find_first(website, '/html/body/main/div[9]/div[2]/div[2]/div[1]')
+# Turning it into text
+counts <- as.character(counts)
+# Extracting the data using regex
+stringr::str_extract(counts, "[0-9,]+")
+```
+
+## API_2
+
+-Using the list of pubmed ids you retrieved, download each papers’ details using the query parameter rettype = abstract. If you get more than 250 ids, just keep the first 250.
+
+```{r counter-pubmed, eval=TRUE}
+library(httr)
+query_ids <- GET(
+  url   = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
+  query = list(
+    db     = "pubmed",
+    term   = "covid19 trail vaccine",
+    retmax = 1000
+  )
+)
+# Extracting the content of the response of GET
+ids <- httr::content(query_ids)
+```
+
+#There are 570 publication with the query term "covid19 vaccine" which is very large. When trying to pull out the abstracts from the publication I got Interger 414 which suggest that it is too long for R to handle. I re-query my search to narrow down the publications to "covid19 trail vaccine" similar to the initial pubmed search and got 3 papers and publication Integer at 200 with this query.
+
+```{r return IDS}
+library (stringr)
+# Turn the result into a character vector
+idstest <- as.character(ids)
+list(ids)
+# Find all the ids 
+ids <- stringr::str_extract_all(ids, "<Id>[0-9]+</Id>")[[1]]
+# Remove all the leading and trailing <Id> </Id>. Make use of "|"
+ids <- stringr::str_remove_all(ids, "PATTERN")
+```
+
+
+
+```{r get-abstracts, eval = TRUE}
+
+publications <- GET(
+  url   = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi",
+  query = list(
+    db= "pubmed",
+    id= paste (ids, collapse= ","),
+    retmax= 250,
+    rettype= "abstract"
+    )
+)
+# Turning the output into character vector
+publications <- httr::content(publications)
+publications_txt <- as.character(publications)
+#list(publications_txt)
+```
+
+
+```{r}
+pub_char_list <- xml2::xml_children(publications)
+pub_char_list <- sapply(pub_char_list, as.character)
+
+```
+
+# Now, extract the abstract and article title for each one of the elements of `pub_char_list`. You can either use `sapply()` as we juststr did, or simply take advantage of vectorization of `stringr::str_extract`
+
+```{r}
+library(stringi)
+abstracts <- str_extract(pub_char_list, "<Abstract>(\\n|.)+</AbstractText>")
+abstracts<- str_remove_all(abstracts, "</?[[:alnum:]]+>")
+abstracts <- str_replace_all(abstracts, "\\s+", " ")
+table(is.na(abstracts))
+```
+
+```{r Titles}
+titles <- str_extract(pub_char_list[1], "<ArticleTitle>(\\n|.)+</ArticleTitle>")
+titles<- str_remove_all(titles, "</?[[:alnum:]]+>")
+```
+
+```{r Name of Journal}
+journal <- str_extract(pub_char_list[1], "</JournalIssue><Title>(\\n|.)+</Title>")
+journal<- str_remove_all(journal, "</?[[:alnum:]]+>")
+```
+
+```{r Publication date}
+pubdate <- str_extract(pub_char_list[1], "<PubDate>(\\n|.)+</PubDate>")
+pubdate<- str_remove_all(pubdate, "</?[[:alnum:]]+>")
+
+```
+
+
+
+
+
+```{r}
+database <- data.frame(
+  PubMedID= ids,
+  NameOfJournal= journal,
+  PublicationDate= pubdate,
+  Title= titles,
+  Abstracts= abstracts
+)
+knitr::kable(database)
+```
+
