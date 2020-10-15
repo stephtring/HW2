@@ -1,6 +1,8 @@
 ---
+name: Stephanie Tring
 title: "Assignment 03 - Web Scraping and Text Mining"
 output: html_document
+output2: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -13,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 -Using the NCBI API, look for papers that show up under the term "sars-cov-2 trial vaccine." Look for the data in the pubmed database, and then retrieve the details of the paper as shown in lab 7. How many papers were you able to find?
 
-# Using the NCBI API for "sars-cov-2 trial vaccine," I retrieved 560 papers.
+- Using the NCBI API for "sars-cov-2 trial vaccine," I retrieved 564 papers.
 
 ```{r counter-pubmed, eval=TRUE}
 library(xml2)
@@ -31,26 +33,26 @@ stringr::str_extract(counts, "[0-9,]+")
 
 -Using the list of pubmed ids you retrieved, download each papers’ details using the query parameter rettype = abstract. If you get more than 250 ids, just keep the first 250.
 
-```{r counter-pubmed, eval=TRUE}
+```{r query pubmed, eval=TRUE}
 library(httr)
 query_ids <- GET(
   url   = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
   query = list(
     db     = "pubmed",
-    term   = "covid19 trail vaccine",
-    retmax = 1000
+    term   = "sars-cov-2 trail vaccine",
+    retmax = 250
   )
 )
 # Extracting the content of the response of GET
 ids <- httr::content(query_ids)
 ```
 
-#There are 570 publication with the query term "covid19 vaccine" which is very large. When trying to pull out the abstracts from the publication I got Interger 414 which suggest that it is too long for R to handle. I re-query my search to narrow down the publications to "covid19 trail vaccine" similar to the initial pubmed search and got 3 papers and publication Integer at 200 with this query.
+-There are 3 publication with the query term "sars-cov-2 trail vaccine"
 
 ```{r return IDS}
 library (stringr)
 # Turn the result into a character vector
-idstest <- as.character(ids)
+ids <- as.character(ids)
 list(ids)
 # Find all the ids 
 ids <- stringr::str_extract_all(ids, "<Id>[0-9]+</Id>")[[1]]
@@ -84,7 +86,7 @@ pub_char_list <- sapply(pub_char_list, as.character)
 
 ```
 
-# Now, extract the abstract and article title for each one of the elements of `pub_char_list`. You can either use `sapply()` as we juststr did, or simply take advantage of vectorization of `stringr::str_extract`
+
 
 ```{r}
 library(stringi)
@@ -158,7 +160,7 @@ pubmed %>%
   ggplot(aes(x=n, y=(fct_reorder(token, n)))) +
   geom_col()
 ```
-# In the initial tokenize, I see that stop words overtook the top 5 of most appeared. With "the" and "of" appearing the most and "covid," "19" and "is" at the bottom of the top 10. The interesting part is that the word "covid" and "19" do not always appear together, "covid" appear slightly more than "19."
+- In the initial tokenize, I see that stop words overtook the top 5 of most appeared. With "the" and "of" appearing the most and "covid," "19" and "is" at the bottom of the top 10. The interesting part is that the word "covid" and "19" do not always appear together, "covid" appear slightly more than "19."
 
 
 ```{r removing stopwords}
@@ -176,40 +178,25 @@ pubmed %>%
   geom_col()
 ```
 
-# After removing stopwords, I see that "covid" is the top appeared word, however it also took "19" as a stop word and removed it as well. The top 5 token after removing stopwords are "covid," "patients," "cancer," "preclampsia," and "fibrosis"
+- After removing the 19,987 stopwords, I see that "covid" is the top appeared word, however it also took "19" as a stop word and removed it as well. The top 5 token after removing stopwords are "covid," "patients," "cancer," "preclampsia," and "fibrosis"
 
 
-```{r}
-pubmed%>%
-  unnest_tokens(token, abstract) %>%
-  anti_join( tidytext :: stop_words, by =c("token" ="word")) %>%
-  group_by(term) %>%
-  count(token) %>%
-  top_n(1,n)
-
-
-
-pubmed %>%
-  unnest_ngrams(ngram, term, n = 2) %>%
-  separate(ngram, into = c("word1", "word2"), sep = " ") %>%
-  select(word1, word2) %>%
-  filter(word1 == "covid") %>%
-  count(word2, sort = TRUE)
-
-
+```{r top 5 per term}
 number_words<-as.character(seq(0,100))
 
 pubmed %>%
-  unnest_tokens(output= word,input= term) %>%
+  unnest_tokens(output= word,input= abstract) %>%
   anti_join(tidytext :: stop_words, by="word") %>%
   filter (!(word %in% number_words)) %>%
-  group_by(abstract) %>%
+  group_by(term) %>%
   count( word, sort = TRUE) %>%
-  top_n(20, n) %>%
+  top_n(5, n) %>%
   ggplot(aes(n, fct_reorder(word, n))) +
   geom_col()
 
 ```
+ 
+- The top five sorted in the terms are "covid," "cancer," "prostate," and "eclampsia."
 
 
 ## Text_mining_2
@@ -222,21 +209,24 @@ pubmed %>%
   ggplot(aes(x=n, y=(fct_reorder(ngram, n)))) +
   geom_col()
 ```
-# Of the top 10 bigram, "covid" and "19" appear the most together at nearly 7000 times and 2500 more times than the next most common which is "of" and "the."
+- Of the top 10 bigram, "covid" and "19" appear the most together at nearly 7000 times and 2500 more times than the next most common which is "of" and "the."
 
 ## Text_mining_3
 
-```{r TF-IDF}
 
+```{r}
 pubmed %>%
-  unnest_tokens(token, abstract) %>%
-  count(token,term) %>%
-  bind_tf_idf(token, term, n) %>%
+  unnest_tokens(document, abstract) %>%
+  count(document,term) %>%
+  bind_tf_idf(document, term, n) %>%
   group_by(term) %>%
   arrange(desc(tf_idf))
-
 ```
-# Based off thr TF-IDF calculations:
-- covid : covid, coronavirus, pandemic, sars and cov
--prostate cancer: prostate cancer, androgen, psa, prostatectomy, and castraction
--
+- Based off thr TF-IDF calculations:
+[covid] covid, coronavirus, pandemic, sars and cov
+[prostate cancer] prostate cancer, androgen, psa, prostatectomy, and castration
+[preclampsia] ecalampsia, preeclampsia, pregnancy, maternal, and gestational
+[meningitis] meningitis, meningeal, pachymeningitis, csf and meninges
+[cystic fibrosis]cf, fibrosis, cystis, cftr, and sweat
+
+The results are different in that in the TF, we see that number of tokens connected in the document and in the method used in Q1 we see the overall count. 
