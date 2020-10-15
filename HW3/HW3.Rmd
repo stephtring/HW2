@@ -7,6 +7,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+### API
+
 ## API_1
 
 -Using the NCBI API, look for papers that show up under the term "sars-cov-2 trial vaccine." Look for the data in the pubmed database, and then retrieve the details of the paper as shown in lab 7. How many papers were you able to find?
@@ -98,7 +100,7 @@ titles<- str_remove_all(titles, "</?[[:alnum:]]+>")
 ```
 
 ```{r Name of Journal}
-journal <- str_extract(pub_char_list[1], "</JournalIssue><Title>(\\n|.)+</Title>")
+journal <- str_extract(pub_char_list[1], "</JournalIssue>(\\n|.)+</Title>")
 journal<- str_remove_all(journal, "</?[[:alnum:]]+>")
 ```
 
@@ -123,3 +125,118 @@ database <- data.frame(
 knitr::kable(database)
 ```
 
+### Text Miniing
+
+## Test_mining_1
+
+```{r read in dataset }
+# Read in dataset
+library (data.table)
+
+library(leaflet)
+library(tidyverse)
+library(lubridate)
+library(tidytext)
+library(ggplot2)
+
+
+download.file("https://raw.githubusercontent.com/USCbiostats/data-science-data/master/03_pubmed/pubmed.csv", "pubmed.csv", method="libcurl", timeout = 60)
+pubmed <- data.table::fread("pubmed.csv")
+
+
+```
+
+```{r}
+head(pubmed)
+```
+
+```{r}
+pubmed %>% 
+  unnest_tokens(output = token, input = abstract) %>%
+  count(token, sort = TRUE) %>%
+  top_n(10, n) %>%
+  ggplot(aes(x=n, y=(fct_reorder(token, n)))) +
+  geom_col()
+```
+# In the initial tokenize, I see that stop words overtook the top 5 of most appeared. With "the" and "of" appearing the most and "covid," "19" and "is" at the bottom of the top 10. The interesting part is that the word "covid" and "19" do not always appear together, "covid" appear slightly more than "19."
+
+
+```{r removing stopwords}
+library(stringr)
+library(forcats)
+number_words<-as.character(seq(0,100))
+
+pubmed %>%
+  unnest_tokens(output= word,input= abstract) %>%
+  anti_join(tidytext :: stop_words, by="word") %>%
+  filter (!(word %in% number_words)) %>%
+  count( word, sort = TRUE) %>%
+  top_n(20, n) %>%
+  ggplot(aes(n, fct_reorder(word, n))) +
+  geom_col()
+```
+
+# After removing stopwords, I see that "covid" is the top appeared word, however it also took "19" as a stop word and removed it as well. The top 5 token after removing stopwords are "covid," "patients," "cancer," "preclampsia," and "fibrosis"
+
+
+```{r}
+pubmed%>%
+  unnest_tokens(token, abstract) %>%
+  anti_join( tidytext :: stop_words, by =c("token" ="word")) %>%
+  group_by(term) %>%
+  count(token) %>%
+  top_n(1,n)
+
+
+
+pubmed %>%
+  unnest_ngrams(ngram, term, n = 2) %>%
+  separate(ngram, into = c("word1", "word2"), sep = " ") %>%
+  select(word1, word2) %>%
+  filter(word1 == "covid") %>%
+  count(word2, sort = TRUE)
+
+
+number_words<-as.character(seq(0,100))
+
+pubmed %>%
+  unnest_tokens(output= word,input= term) %>%
+  anti_join(tidytext :: stop_words, by="word") %>%
+  filter (!(word %in% number_words)) %>%
+  group_by(abstract) %>%
+  count( word, sort = TRUE) %>%
+  top_n(20, n) %>%
+  ggplot(aes(n, fct_reorder(word, n))) +
+  geom_col()
+
+```
+
+
+## Text_mining_2
+
+```{r bi-grams and ggplot}
+pubmed %>% 
+  unnest_ngrams(output = ngram, input = abstract, n=2) %>%
+  count(ngram, sort = TRUE) %>%
+  top_n(20, n) %>%
+  ggplot(aes(x=n, y=(fct_reorder(ngram, n)))) +
+  geom_col()
+```
+# Of the top 10 bigram, "covid" and "19" appear the most together at nearly 7000 times and 2500 more times than the next most common which is "of" and "the."
+
+## Text_mining_3
+
+```{r TF-IDF}
+
+pubmed %>%
+  unnest_tokens(token, abstract) %>%
+  count(token,term) %>%
+  bind_tf_idf(token, term, n) %>%
+  group_by(term) %>%
+  arrange(desc(tf_idf))
+
+```
+# Based off thr TF-IDF calculations:
+- covid : covid, coronavirus, pandemic, sars and cov
+-prostate cancer: prostate cancer, androgen, psa, prostatectomy, and castraction
+-
